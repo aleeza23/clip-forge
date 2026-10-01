@@ -43,7 +43,7 @@ IMPORTANT:
 - Only use information that actually appears in the transcript.
 - Never invent quotes, topics, claims, or events.
 - Every selected clip must correspond to a continuous section of the transcript.
-- Choose exactly 2 strong clip opportunity.
+- Choose 2 strong clip opportunities.
 - Each clip should normally be 20-60 seconds.
 - Prefer strong hooks, useful insights, surprising statements, stories, specific advice, emotional moments, or clear takeaways.
 - Avoid generic introductions, greetings, filler, sponsorships, and incomplete thoughts.

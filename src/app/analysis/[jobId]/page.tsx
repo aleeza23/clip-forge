@@ -4,8 +4,14 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2, Circle, Loader2, AlertCircle } from "lucide-react";
 import { Navbar } from "@/components/navbar";
-import { GeneratedClipsView } from "@/components/generated-clips-view";
+const ClipPlayer = dynamic(() => import("@/components/clip-player"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full aspect-[9/16] rounded-2xl bg-zinc-900 animate-pulse" />
+  ),
+});
 import { Button } from "@/components/ui/button";
+import dynamic from "next/dynamic";
 
 // Order matters: a step is "done" once the job status has moved past it.
 const STEPS = [
@@ -168,6 +174,31 @@ export default function AnalysisPage() {
             </div>
           )}
         </div>
+        {isCompleted && (
+          <section className="mt-12 space-y-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">
+              Your clips ({job.clips.length})
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {job.clips.map((clip: any) => (
+                <div
+                  key={clip.id}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 space-y-3"
+                >
+                  <ClipPlayer clip={clip} videoUrl={job.originalVideoUrl} />
+                  <h3 className="text-sm font-semibold text-white">
+                    {clip.title}
+                  </h3>
+                  <div className="flex items-center justify-between text-xs text-zinc-400">
+                    <span>{clip.duration}</span>
+                    <span>Score {clip.viralScore}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

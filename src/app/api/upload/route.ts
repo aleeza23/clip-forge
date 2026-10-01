@@ -3,7 +3,7 @@ import { uploadVideoToCloudinary } from "@/lib/cloudinary";
 import { clipsStore } from "@/lib/clips-store";
 import { ClipJob } from "@/types/clips";
 
-export const maxDuration = 60; // Allow sufficient time for Cloudinary upload
+export const maxDuration = 120; // Allow sufficient time for Cloudinary upload
 
 export async function POST(req: NextRequest) {
   try {

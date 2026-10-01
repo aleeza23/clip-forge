@@ -44,38 +44,43 @@ export function generateCloudinaryClipUrl(
   options: {
     startOffset: number;
     endOffset: number;
-    subtitlePublicId: string;
     aspectRatio?: "9:16" | "1:1" | "16:9";
+    captionText?: string;
   }
 ): string {
-  const {
-    startOffset,
-    endOffset,
-    subtitlePublicId,
-    aspectRatio = "9:16",
-  } = options;
+  const { startOffset, endOffset, aspectRatio = "9:16", captionText } = options;
 
+  // Cloudinary URL transformation array
   const transformation: any[] = [
+    // Trim video to start and end offset
     {
       start_offset: startOffset,
       end_offset: endOffset,
     },
+    // Auto-reframe and crop to target aspect ratio (9:16 vertical shorts by default)
     {
       aspect_ratio: aspectRatio,
       crop: "fill",
       gravity: "auto",
     },
-    {
-      overlay: {
-        resource_type: "subtitles",
-        public_id: subtitlePublicId,
-      },
-    },
-    {
-      flag: "layer_apply",
-      gravity: "south",
-    },
   ];
+
+  // If captionText is provided, burn in animated/stylish caption using Cloudinary text overlay
+  if (captionText) {
+    const cleanText = captionText.replace(/[,/]/g, " ").trim();
+    transformation.push({
+      overlay: {
+        font_family: "Arial",
+        font_size: 38,
+        font_weight: "black",
+        text: cleanText,
+      },
+      color: "#ffffff",
+      background: "rgb:000000_80",
+      gravity: "south",
+      y: 120,
+    });
+  }
 
   return cloudinary.url(publicId, {
     resource_type: "video",
@@ -83,8 +88,6 @@ export function generateCloudinaryClipUrl(
     format: "mp4",
   });
 }
-
-
 export async function uploadSrtToCloudinary(
   srtContent: string,
   publicId: string
@@ -111,17 +114,5 @@ export async function uploadSrtToCloudinary(
   });
 }
 
-export async function uploadVideoFromUrl(
-  videoUrl: string,
-  publicId: string,
-  folder = "generated-clips"
-): Promise<UploadApiResponse> {
-  return cloudinary.uploader.upload(videoUrl, {
-    resource_type: "video",
-    folder,
-    public_id: publicId,
-    overwrite: true,
-  });
-}
 export { cloudinary };
 export default cloudinary;

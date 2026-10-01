@@ -1,11 +1,10 @@
 import { inngest } from "./client";
-import { generateCloudinaryClipUrl, uploadSrtToCloudinary, uploadVideoFromUrl } from "@/lib/cloudinary";
+import { generateCloudinaryClipUrl } from "@/lib/cloudinary";
 import { clipsStore } from "@/lib/clips-store";
 import { GeneratedClip } from "@/types/clips";
 import { formatTime } from "@/lib/formatters";
 import { buildCaptions, transcribeFromUrl } from "@/lib/deepgram";
 import { analyzeTranscript } from "@/lib/analyze-transcript";
-import { captionsToSrt } from "@/lib/srt";
 
 export const helloWorld = inngest.createFunction(
   {
@@ -134,120 +133,103 @@ export const processVideoToClips = inngest.createFunction(
 
     // STEP 4
     // Real timestamps → Cloudinary clips
-const generatedClips: GeneratedClip[] = await step.run(
-  "generate-and-save-video-clips",
-  async () => {
-    clipsStore.updateJob(jobId, {
-      status: "processing",
-      progress: 70,
-      currentStepMessage: "Creating and saving your video clips...",
-    });
+    const generatedClips: GeneratedClip[] = await step.run(
+      "generate-cloudinary-clips-with-captions",
+      async () => {
+        clipsStore.updateJob(jobId, {
+          status: "processing",
+          progress: 70,
+          currentStepMessage:
+            "Generating clips from the AI-selected moments...",
+        });
 
-    const processed: GeneratedClip[] = [];
+        return analysis.hooks.map(
+          (hook: HookAnalysis, index: number) => {
+            const clipDurationSec =
+              hook.endTime - hook.startTime;
 
-    for (let index = 0; index < analysis.hooks.length; index++) {
-      const hook = analysis.hooks[index];
+            const transformedUrl =
+              generateCloudinaryClipUrl(publicId, {
+                startOffset: hook.startTime,
+                endOffset: hook.endTime,
+                aspectRatio: "9:16",
+                captionText: hook.captionText,
+              });
 
-      const clipDurationSec = hook.endTime - hook.startTime;
+            const clipCaptions = captions
+              .filter(
+                (caption: any) =>
+                  caption.end > hook.startTime &&
+                  caption.start < hook.endTime
+              )
+              .map((caption : any) => ({
+                text: caption.text,
+                start: Math.max(
+                  0,
+                  Math.round(
+                    (caption.start - hook.startTime) * 10
+                  ) / 10
+                ),
+                end: Math.min(
+                  clipDurationSec,
+                  Math.round(
+                    (caption.end - hook.startTime) * 10
+                  ) / 10
+                ),
+              }));
 
-      const clipCaptions = captions
-        .filter(
-          (caption: any) =>
-            caption.end > hook.startTime &&
-            caption.start < hook.endTime
-        )
-        .map((caption: any) => ({
-          text: caption.text,
-          start: Math.max(
-            0,
-            Math.round((caption.start - hook.startTime) * 10) / 10
-          ),
-          end: Math.min(
-            clipDurationSec,
-            Math.round((caption.end - hook.startTime) * 10) / 10
-          ),
-        }));
+            return {
+              id: `clip-${jobId}-${index + 1}`,
+              title: hook.title,
 
-      // 1. Create SRT for this clip
-      const srtContent = captionsToSrt(clipCaptions);
+              duration: formatTime(clipDurationSec),
+              durationSeconds: clipDurationSec,
 
-      const subtitlePublicId = `captions/${jobId}/clip-${index + 1}.srt`;
+              viralScore: hook.viralScore,
 
-      await uploadSrtToCloudinary(
-        srtContent,
-        subtitlePublicId
-      );
+              startTime: hook.startTime,
+              endTime: hook.endTime,
 
-      // 2. Create Cloudinary transformation URL
-      const transformedUrl = generateCloudinaryClipUrl(publicId, {
-        startOffset: hook.startTime,
-        endOffset: hook.endTime,
-        aspectRatio: "9:16",
-        subtitlePublicId,
-      });
+              thumbnail: videoUrl,
 
-      // 3. Save the transformed video as a NEW Cloudinary asset
-      const uploadedClip = await uploadVideoFromUrl(
-        transformedUrl,
-        `clip-${index + 1}`,
-        `generated-clips/${jobId}`
-      );
+              transcriptSample: hook.captionText,
 
-      // 4. Use the NEW Cloudinary URL
-      const savedClipUrl = uploadedClip.secure_url;
+              captions: clipCaptions,
 
-      processed.push({
-        id: `clip-${jobId}-${index + 1}`,
-        title: hook.title ?? `Clip ${index + 1}`,
-        duration: formatTime(clipDurationSec),
-        durationSeconds: clipDurationSec,
-        viralScore: hook.viralScore,
-        startTime: hook.startTime,
-        endTime: hook.endTime,
+              captionText: hook.captionText,
 
-        thumbnail: videoUrl,
+              aspectRatio: "9:16" as const,
 
-        transcriptSample: hook.captionText,
+              viewsEstimate: hook.viewsEstimate,
 
-        captions: clipCaptions,
+              tags: hook.tags,
 
-        captionText: hook.captionText,
+              cloudinaryUrl: transformedUrl,
 
-        aspectRatio: "9:16",
-
-        viewsEstimate:
-          hook.viewsEstimate ?? "Moderate short-form potential",
-
-        tags: hook.tags ?? [],
-
-        // THIS IS NOW THE SAVED VIDEO
-        cloudinaryUrl: savedClipUrl,
-
-        // THIS IS NOW THE GENERATED CLIP'S PUBLIC ID
-        cloudinaryPublicId: uploadedClip.public_id,
-      });
-    }
-
-    return processed;
-  }
-);
+              cloudinaryPublicId: publicId,
+            };
+          }
+        );
+      }
+    );
 
     // STEP 5
     // Save result
-await step.run("save-clips-to-cloudinary", async () => {
-  clipsStore.updateJob(jobId, {
-    status: "completed",
-    progress: 100,
-    currentStepMessage: `Generated ${generatedClips.length} video clips and saved them to Cloudinary.`,
-    clips: generatedClips,
-  });
+    await step.run("save-clips-to-cloudinary", async () => {
+      clipsStore.updateJob(jobId, {
+        status: "completed",
+        progress: 100,
+        currentStepMessage:
+          `Generated ${generatedClips.length} clips with captions!`,
+        clips: generatedClips,
+      });
 
-  return {
-    savedCount: generatedClips.length,
-    folder: `generated-clips/${jobId}`,
-    timestamp: new Date().toISOString(),
-  };
-});
+      return {
+        savedCount: generatedClips.length,
+        folder,
+        timestamp: new Date().toISOString(),
+      };
+    });
 
     return {
       success: true,
