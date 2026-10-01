@@ -1,3 +1,5 @@
+import "server-only";
+
 const BASE = "https://api.magichour.ai";
 
 async function mh(path: string, init: RequestInit = {}) {
