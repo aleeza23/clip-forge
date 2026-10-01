@@ -9,7 +9,8 @@ async function mh(path: string, init: RequestInit = {}) {
     },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || `Magic Hour error ${res.status}`);
+  if (!res.ok)
+    throw new Error(data.message || `Magic Hour error ${res.status}`);
   return data;
 }
 
@@ -34,7 +35,7 @@ export function createVideo(imagePath: string, prompt: string, seconds = 5) {
     body: JSON.stringify({
       name: "photo-to-video",
       end_seconds: seconds,
-      model: process.env.MAGIC_HOUR_MODEL || "wan-2.2",
+      model: "wan-2.2",
       resolution: "480p",
       style: { prompt },
       assets: { image_file_path: imagePath },
