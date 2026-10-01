@@ -26,7 +26,6 @@ export interface MediaFile {
   cloudinaryPublicId?: string;
   rawFile?: File;
   uploadedAt: Date;
-  status: ClipJobStatus;
   transcript?: string;
 }
 
