@@ -49,4 +49,16 @@ export const getVideo = (id: string) => mh(`/v1/video-projects/${id}`);
 
 // Keeps the person unchanged and focuses the model on simple motion
 export const buildPrompt = (userPrompt: string) =>
-  `The same person from the photo, keep face, hair, body and clothes exactly unchanged. ${userPrompt}. Natural smooth motion, realistic, steady camera.`;
+  `Use the uploaded image as the exact visual reference for the subject.
+
+Preserve the person's identity, facial features, hairstyle, body proportions,
+clothing, colors, and overall appearance throughout the entire video.
+
+Motion:
+${userPrompt}
+
+The movement should be natural and physically realistic.
+Keep the subject's face stable and recognizable.
+Avoid changing clothing, facial structure, body proportions, or identity.
+Natural lighting, realistic skin texture, subtle motion, smooth temporal consistency,
+and realistic camera movement.`;
